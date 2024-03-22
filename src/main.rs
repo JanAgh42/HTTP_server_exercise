@@ -4,7 +4,7 @@ use std::{
     net::{TcpListener, TcpStream}
 };
 
-const RESPONSE_OK: &str = "HTTP/1.1 200 OK\r\n\r\n";
+const RESPONSE_OK: &str = "HTTP/1.1 200 OK";
 const RESPONSE_404: &str = "HTTP/1.1 404 Not Found\r\n\r\n";
 
 fn main() {
@@ -42,7 +42,7 @@ fn handle_stream(mut stream: TcpStream) {
 
 
     let response_bytes = match path {
-        "/" => RESPONSE_OK.to_string().into_bytes(),
+        "/" => format!("{}\r\n\r\n", RESPONSE_OK).into_bytes(),
         _ => match path.starts_with("/echo/") {
             true => build_response_from_path(path),
             _ => RESPONSE_404.to_string().into_bytes()
