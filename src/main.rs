@@ -39,10 +39,11 @@ fn handle_stream(mut stream: TcpStream) {
         .split_whitespace()
         .collect::<Vec<&str>>()[1];
 
-    let response_bytes = match path.starts_with("/echo/") {
-        true => build_response_from_path(path),
-        _ => RESPONSE_404.to_string().into_bytes()
-    };
+    let response_bytes = build_response_from_path(path);
+    // match path.starts_with("/echo/") {
+    //     true => build_response_from_path(path),
+    //     _ => RESPONSE_404.to_string().into_bytes()
+    // };
 
     stream.write(&response_bytes).unwrap();
 }
