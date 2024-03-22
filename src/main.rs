@@ -53,9 +53,5 @@ fn build_response_from_path(path: &str) -> Vec<u8> {
     let payload = path.split("/echo/").collect::<Vec<&str>>()[0];
     let payload_length = payload.as_bytes().len();
 
-    return format!("
-        {}\r\n
-        Content-type: text/plain\r\n
-        Content-Length: {}\r\n\r\n
-        {}\r\n", RESPONSE_OK, payload_length, payload).into_bytes();
+    return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, payload_length, payload).into_bytes();
 }
