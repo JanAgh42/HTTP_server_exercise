@@ -32,6 +32,7 @@ impl<'a> Request<'a> {
             .collect::<Vec<&str>>()[1];
     
         let body = request.split("\r\n\r\n").collect::<Vec<&str>>()[1];
+        let body = body.split("\r\n").collect::<Vec<&str>>()[0];
 
         Self {
             method: method.to_string(),
@@ -65,7 +66,6 @@ fn handle_stream(mut stream: TcpStream) {
     stream.read(&mut buffer).unwrap();
     
     let request = String::from_utf8_lossy(&buffer[..]);
-    
     let parsed_request = Request::new(&request);
 
     let response_bytes = match parsed_request.path.as_str() {
