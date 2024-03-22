@@ -1,26 +1,50 @@
 // Uncomment this block to pass the first stage
 use std::{
-    fs,
-    env,
-    thread,
-    io::{Write, Read},
-    net::{TcpListener, TcpStream}
+    borrow::Cow, env, fs, io::{Read, Write}, net::{TcpListener, TcpStream}, thread
 };
 
 const RESPONSE_OK: &str = "HTTP/1.1 200 OK";
 const RESPONSE_404: &str = "HTTP/1.1 404 Not Found\r\n\r\n";
+const RESPONSE_CREATED: &str = "HTTP/1.1 201 Created\r\n\r\n";
 
 const CONTENT_TYPE_TEXT: &str = "text/plain";
 const CONTENT_TYPE_OCTET: &str = "application/octet-stream";
 
 const DIRECTORY_FLAG: &str = "--directory";
 
+pub struct Request<'a> {
+    method: String,
+    path: String,
+    body: String,
+    request_lines: Vec<&'a str>,
+}
+
+impl<'a> Request<'a> {
+    pub fn new(request: &'a Cow<'a, str>) -> Self {
+        let request_lines: Vec<&str> = request.split("\r\n").collect();
+
+        let method = request_lines[0]
+            .split_whitespace()
+            .collect::<Vec<&str>>()[0];
+        
+        let path = request_lines[0]
+            .split_whitespace()
+            .collect::<Vec<&str>>()[1];
+    
+        let body = request.split("\r\n\r\n").collect::<Vec<&str>>()[1];
+
+        Self {
+            method: method.to_string(),
+            path: path.to_string(),
+            body: body.to_string(),
+            request_lines,
+        }
+    }
+}
+
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
-    //
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     
     for stream in listener.incoming() {
@@ -41,40 +65,37 @@ fn handle_stream(mut stream: TcpStream) {
     stream.read(&mut buffer).unwrap();
     
     let request = String::from_utf8_lossy(&buffer[..]);
-    let request_lines: Vec<&str> = request.split("\r\n").collect();
     
-    let path = request_lines[0]
-        .split_whitespace()
-        .collect::<Vec<&str>>()[1];
+    let parsed_request = Request::new(&request);
 
-    let response_bytes = match path {
+    let response_bytes = match parsed_request.path.as_str() {
         "/" => format!("{}\r\n\r\n", RESPONSE_OK).into_bytes(),
-        _ => get_response(path, request_lines)
+        _ => get_response(&parsed_request)
     };
 
     stream.write(&response_bytes).unwrap();
 }
 
-fn get_response(path: &str, request_lines: Vec<&str>) -> Vec<u8> {
-    if path.starts_with("/echo/") {
-        return build_response_from_path_content(path);
-    } else if path.starts_with("/user-agent") {
-        return build_response_from_user_agent(request_lines);
-    } else if path.starts_with("/files/") {
-        return build_response_from_file(path);
+fn get_response(parsed_request: &Request) -> Vec<u8> {
+    if parsed_request.path.starts_with("/echo/") {
+        return build_response_from_path_content(&parsed_request.path);
+    } else if parsed_request.path.starts_with("/user-agent") {
+        return build_response_from_user_agent(&parsed_request.request_lines);
+    } else if parsed_request.path.starts_with("/files/") {
+        return build_response_from_file(&parsed_request);
     }
         
     RESPONSE_404.to_string().into_bytes()
 }
 
-fn build_response_from_path_content(path: &str) -> Vec<u8> {
+fn build_response_from_path_content(path: &String) -> Vec<u8> {
     let payload = path.split("/echo/").collect::<Vec<&str>>()[1];
     let payload_length = payload.as_bytes().len();
 
     build_response(RESPONSE_OK, CONTENT_TYPE_TEXT, payload_length, payload)
 }
 
-fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
+fn build_response_from_user_agent(request_lines: &Vec<&str>) -> Vec<u8> {
     let user_agent = request_lines.iter().find(|line| line.starts_with("User-Agent: ")).unwrap();
     let user_agent = user_agent.split("User-Agent: ").collect::<Vec<&str>>()[1];
     let user_agent_length = user_agent.as_bytes().len();
@@ -82,22 +103,25 @@ fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
     build_response(RESPONSE_OK, CONTENT_TYPE_TEXT, user_agent_length, user_agent)
 }
 
-fn build_response_from_file(path: &str) -> Vec<u8> {
-    let file_name = path.split("/files/").collect::<Vec<&str>>()[1];
+fn build_response_from_file(parsed_request: &Request) -> Vec<u8> {
+    let file_name = parsed_request.path.split("/files/").collect::<Vec<&str>>()[1];
     let args: Vec<String> = env::args().collect();
 
     if args.len() > 0 && args.contains(&DIRECTORY_FLAG.to_string()) {
         let flag_position = args.iter().position(|arg| arg == DIRECTORY_FLAG).unwrap();
-        let dir_name = &args[flag_position + 1];
+        let file_path = format!("{}/{}", &args[flag_position + 1], file_name);
 
-        return get_file_content(dir_name, file_name);
+        return match parsed_request.method.as_str() {
+            "GET" => get_file_content(file_path),
+            "POST" => post_file_content(file_path, &parsed_request.body),
+            _ => RESPONSE_404.to_string().into_bytes()
+        }
     }
 
     RESPONSE_404.to_string().into_bytes()
 }
 
-fn get_file_content(dir_name: &str, file_name: &str) -> Vec<u8> {
-    let file_path = format!("{}/{}", dir_name, file_name);
+fn get_file_content(file_path: String) -> Vec<u8> {
     let file_content = fs::read_to_string(file_path);
 
     match file_content {
@@ -107,6 +131,14 @@ fn get_file_content(dir_name: &str, file_name: &str) -> Vec<u8> {
         }
         Err(_) => RESPONSE_404.to_string().into_bytes()
     }
+}
+
+fn post_file_content(file_path: String, body: &String) -> Vec<u8> {
+    let mut file = fs::File::create(file_path).unwrap();
+
+    file.write_all(body.as_bytes()).unwrap();
+
+    RESPONSE_CREATED.to_string().into_bytes()
 }
 
 fn build_response(response: &str, ctype: &str, length: usize, content: &str) -> Vec<u8> {
