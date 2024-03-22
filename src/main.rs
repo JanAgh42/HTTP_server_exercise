@@ -23,19 +23,18 @@ impl<'a> Request<'a> {
     pub fn new(request: &'a Cow<'a, str>) -> Self {
         let request_lines: Vec<&str> = request.split("\r\n").collect();
 
-        let method = request_lines[0]
-            .split_whitespace()
-            .collect::<Vec<&str>>()[0];
-        
-        let path = request_lines[0]
-            .split_whitespace()
-            .collect::<Vec<&str>>()[1];
+        let first_line = request_lines[0]
+        .split_whitespace()
+        .collect::<Vec<&str>>();
     
-        let body = request.split("\r\n\r\n").collect::<Vec<&str>>()[1].trim_end_matches(char::from(0));
+        let body = request
+            .split("\r\n\r\n")
+            .collect::<Vec<&str>>()[1]
+            .trim_end_matches(char::from(0));
 
         Self {
-            method: method.to_string(),
-            path: path.to_string(),
+            method: first_line[0].to_string(),
+            path: first_line[1].to_string(),
             body: body.to_string(),
             request_lines,
         }
