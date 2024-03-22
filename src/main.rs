@@ -1,5 +1,6 @@
 // Uncomment this block to pass the first stage
 use std::{
+    thread,
     io::{Write, Read},
     net::{TcpListener, TcpStream}
 };
@@ -16,14 +17,14 @@ fn main() {
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     
     for stream in listener.incoming() {
-        match stream {
+        thread::spawn(move || match stream {
             Ok(_stream) => {
                 handle_stream(_stream);
             }
             Err(e) => {
                 println!("error: {}", e);
             }
-        }
+        });
     }
 }
 
@@ -61,7 +62,7 @@ fn build_response_from_path_content(path: &str) -> Vec<u8> {
     let payload = path.split("/echo/").collect::<Vec<&str>>()[1];
     let payload_length = payload.as_bytes().len();
 
-    return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, payload_length, payload).into_bytes();
+    build_response(RESPONSE_OK, payload_length, payload)
 }
 
 fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
@@ -69,5 +70,9 @@ fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
     let user_agent = user_agent.split("User-Agent: ").collect::<Vec<&str>>()[1];
     let user_agent_length = user_agent.as_bytes().len();
 
-    return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, user_agent_length, user_agent).into_bytes();
+    build_response(RESPONSE_OK, user_agent_length, user_agent)
+}
+
+fn build_response(response: &str, length: usize, content: &str) -> Vec<u8> {
+    format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", response, length, content).into_bytes()
 }
