@@ -10,8 +10,6 @@ fn main() {
     // Uncomment this block to pass the first stage
     //
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
-
-    let response_ok = "HTTP/1.1 200 OK\r\n\r\n";
     
     for stream in listener.incoming() {
         match stream {
@@ -26,6 +24,6 @@ fn main() {
 }
 
 fn handle_stream(mut stream: TcpStream) {
-    let response_bytes = response_ok.as_bytes();
+    let response_bytes = RESPONSE_OK.as_bytes();
     stream.write(response_bytes).unwrap();
 }
