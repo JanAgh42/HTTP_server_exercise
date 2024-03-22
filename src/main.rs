@@ -1,7 +1,11 @@
 // Uncomment this block to pass the first stage
-use std::{io::Write, net::{TcpListener, TcpStream}};
+use std::{
+    io::{Write, Read},
+    net::{TcpListener, TcpStream}
+};
 
 const RESPONSE_OK: &str = "HTTP/1.1 200 OK\r\n\r\n";
+const RESPONSE_404: &str = "HTTP/1.1 404 Not Found\r\n\r\n";
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -24,6 +28,21 @@ fn main() {
 }
 
 fn handle_stream(mut stream: TcpStream) {
-    let response_bytes = RESPONSE_OK.as_bytes();
+    let mut buffer = [0; 1024];
+
+    stream.read(&mut buffer).unwrap();
+    
+    let request = String::from_utf8_lossy(&buffer[..]);
+    let request_lines: Vec<&str> = request.split("\r\n").collect();
+    
+    let path = request_lines[0]
+        .split_whitespace()
+        .collect::<Vec<&str>>()[1];
+
+    let response_bytes = match path {
+        "/" => RESPONSE_OK.as_bytes(),
+        _ => RESPONSE_404.as_bytes()
+    };
+
     stream.write(response_bytes).unwrap();
 }
