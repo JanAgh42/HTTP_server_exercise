@@ -31,8 +31,7 @@ impl<'a> Request<'a> {
             .split_whitespace()
             .collect::<Vec<&str>>()[1];
     
-        let body = request.split("\r\n\r\n").collect::<Vec<&str>>()[1];
-        let body = body.split("\r\n").collect::<Vec<&str>>()[0];
+        let body = request.split("\r\n\r\n").collect::<Vec<&str>>()[1].trim_end();
 
         Self {
             method: method.to_string(),
