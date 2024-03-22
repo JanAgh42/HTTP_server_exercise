@@ -1,5 +1,5 @@
 // Uncomment this block to pass the first stage
-use std::net::{TcpListener, TcpStream};
+use std::{io::Write, net::{TcpListener, TcpStream}};
 
 const RESPONSE_OK = "HTTP/1.1 200 OK\r\n\r\n";
 
