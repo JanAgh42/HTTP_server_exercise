@@ -39,22 +39,35 @@ fn handle_stream(mut stream: TcpStream) {
         .split_whitespace()
         .collect::<Vec<&str>>()[1];
 
-
-
     let response_bytes = match path {
         "/" => format!("{}\r\n\r\n", RESPONSE_OK).into_bytes(),
-        _ => match path.starts_with("/echo/") {
-            true => build_response_from_path(path),
-            _ => RESPONSE_404.to_string().into_bytes()
-        }
+        _ => get_response(path, request_lines)
     };
 
     stream.write(&response_bytes).unwrap();
 }
 
-fn build_response_from_path(path: &str) -> Vec<u8> {
+fn get_response(path: &str, request_lines: Vec<&str>) -> Vec<u8> {
+    if path.starts_with("/echo/") {
+        return build_response_from_path_content(path);
+    } else if path.starts_with("/user-agent") {
+        return build_response_from_user_agent(request_lines);
+    }
+        
+    RESPONSE_404.to_string().into_bytes()
+}
+
+fn build_response_from_path_content(path: &str) -> Vec<u8> {
     let payload = path.split("/echo/").collect::<Vec<&str>>()[1];
     let payload_length = payload.as_bytes().len();
 
     return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, payload_length, payload).into_bytes();
+}
+
+fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
+    let user_agent = request_lines.iter().find(|line| line.starts_with("User-Agent: ")).unwrap();
+    let user_agent = user_agent.split("User-Agent: ").collect::<Vec<&str>>()[1];
+    let user_agent_length = user_agent.as_bytes().len();
+
+    return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, user_agent_length, user_agent).into_bytes();
 }
