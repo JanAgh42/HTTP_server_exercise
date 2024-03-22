@@ -1,5 +1,7 @@
 // Uncomment this block to pass the first stage
 use std::{
+    fs,
+    env,
     thread,
     io::{Write, Read},
     net::{TcpListener, TcpStream}
@@ -7,6 +9,11 @@ use std::{
 
 const RESPONSE_OK: &str = "HTTP/1.1 200 OK";
 const RESPONSE_404: &str = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+const CONTENT_TYPE_TEXT: &str = "text/plain";
+const CONTENT_TYPE_OCTET: &str = "application/octet-stream";
+
+const DIRECTORY_FLAG: &str = "--directory";
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -53,6 +60,8 @@ fn get_response(path: &str, request_lines: Vec<&str>) -> Vec<u8> {
         return build_response_from_path_content(path);
     } else if path.starts_with("/user-agent") {
         return build_response_from_user_agent(request_lines);
+    } else if path.starts_with("/files/") {
+        return build_response_from_file(path);
     }
         
     RESPONSE_404.to_string().into_bytes()
@@ -62,7 +71,7 @@ fn build_response_from_path_content(path: &str) -> Vec<u8> {
     let payload = path.split("/echo/").collect::<Vec<&str>>()[1];
     let payload_length = payload.as_bytes().len();
 
-    build_response(RESPONSE_OK, payload_length, payload)
+    build_response(RESPONSE_OK, CONTENT_TYPE_TEXT, payload_length, payload)
 }
 
 fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
@@ -70,9 +79,37 @@ fn build_response_from_user_agent(request_lines: Vec<&str>) -> Vec<u8> {
     let user_agent = user_agent.split("User-Agent: ").collect::<Vec<&str>>()[1];
     let user_agent_length = user_agent.as_bytes().len();
 
-    build_response(RESPONSE_OK, user_agent_length, user_agent)
+    build_response(RESPONSE_OK, CONTENT_TYPE_TEXT, user_agent_length, user_agent)
 }
 
-fn build_response(response: &str, length: usize, content: &str) -> Vec<u8> {
-    format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", response, length, content).into_bytes()
+fn build_response_from_file(path: &str) -> Vec<u8> {
+    let file_name = path.split("/files/").collect::<Vec<&str>>()[1];
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 0 && args.contains(&DIRECTORY_FLAG.to_string()) {
+        let flag_position = args.iter().position(|arg| arg == DIRECTORY_FLAG).unwrap();
+        let dir_name = &args[flag_position + 1];
+
+        return get_file_content(dir_name, file_name);
+    }
+
+    RESPONSE_404.to_string().into_bytes()
+}
+
+fn get_file_content(dir_name: &str, file_name: &str) -> Vec<u8> {
+    let file_path = format!("{}/{}", dir_name, file_name);
+    let file_content = fs::read_to_string(file_path);
+
+    match file_content {
+        Ok(content) => {
+            let content_length = content.as_bytes().len();
+            build_response(RESPONSE_OK, CONTENT_TYPE_OCTET, content_length, &content)
+        }
+        Err(_) => RESPONSE_404.to_string().into_bytes()
+    }
+}
+
+fn build_response(response: &str, ctype: &str, length: usize, content: &str) -> Vec<u8> {
+    format!("{}\r\nContent-type: {}\r\nContent-Length: {}\r\n\r\n{}\r\n",
+        response, ctype, length, content).into_bytes()
 }
