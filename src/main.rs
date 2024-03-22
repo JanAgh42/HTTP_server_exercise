@@ -1,7 +1,7 @@
 // Uncomment this block to pass the first stage
 use std::net::{TcpListener, TcpStream};
 
-let RESPONSE_OK = "HTTP/1.1 200 OK\r\n\r\n";
+const RESPONSE_OK = "HTTP/1.1 200 OK\r\n\r\n";
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
