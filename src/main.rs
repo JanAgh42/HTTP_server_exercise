@@ -53,7 +53,7 @@ fn handle_stream(mut stream: TcpStream) {
 }
 
 fn build_response_from_path(path: &str) -> Vec<u8> {
-    let payload = path.split("/echo/").collect::<Vec<&str>>()[0];
+    let payload = path.split("/echo/").collect::<Vec<&str>>()[1];
     let payload_length = payload.as_bytes().len();
 
     return format!("{}\r\nContent-type: text/plain\r\nContent-Length: {}\r\n\r\n{}\r\n", RESPONSE_OK, payload_length, payload).into_bytes();
